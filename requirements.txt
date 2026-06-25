@@ -1,8 +1,36 @@
-pandas 
-numpy 
-scikit-learn 
-imbalanced-learn 
-streamlit 
-joblib 
-matplotlib 
-seaborn 
+# Student Performance Prediction System
+# Install with: pip install -r requirements.txt
+
+# Core data science
+pandas==2.3.3
+numpy==2.3.5
+scikit-learn
+imbalanced-learn
+joblib
+
+# Visualisation
+matplotlib==3.10.3
+seaborn==0.13.2
+
+# Web framework — backend
+fastapi==0.138.0
+uvicorn==0.49.0
+python-multipart==0.0.32
+
+# Web framework — frontend
+streamlit==1.51.0
+
+# Database
+sqlalchemy==2.0.51
+psycopg2-binary==2.9.12
+
+# Authentication
+python-jose==3.5.0
+passlib==1.7.4
+bcrypt==5.0.0
+
+# HTTP client (Streamlit calls FastAPI)
+requests==2.32.5
+
+# PDF report generation
+reportlab==4.4.10
