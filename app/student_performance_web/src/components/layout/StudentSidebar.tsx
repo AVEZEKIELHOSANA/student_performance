@@ -13,7 +13,11 @@ import {
   FaSignOutAlt,
   FaChevronRight,
   FaBars,
-  FaTimes
+  FaTimes,
+  FaSlidersH,
+  FaBell,
+  FaUser,
+  FaChevronDown
 } from 'react-icons/fa';
 
 interface MenuItem {
@@ -21,14 +25,32 @@ interface MenuItem {
   label: string;
   icon: React.ElementType;
   href: string;
+  subItems?: SubMenuItem[];
+}
+
+interface SubMenuItem {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  href: string;
 }
 
 const menuItems: MenuItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: FaTachometerAlt, href: '/student' },
-  { id: 'predict', label: 'Predict', icon: FaChartLine, href: '/student/predict' },
+  { id: 'dashboard', label: 'Dashboard', icon: FaTachometerAlt, href: '/student/dashboard' },
+  { id: 'predict', label: 'Run Prediction', icon: FaChartLine, href: '/student/predict' },
+  { id: 'simulator', label: 'What-If Simulator', icon: FaSlidersH, href: '/student/simulator' },
   { id: 'history', label: 'Prediction History', icon: FaHistory, href: '/student/history' },
-  { id: 'recommendations', label: 'Recommendations', icon: FaLightbulb, href: '/student/recommendations' },
-  { id: 'settings', label: 'Settings', icon: FaCog, href: '/student/settings' },
+  { id: 'recommendations', label: 'Recommendations', icon: FaLightbulb, href: '/student/recommendation' },
+  { 
+    id: 'settings', 
+    label: 'Settings', 
+    icon: FaCog, 
+    href: '/student/settings',
+    subItems: [
+      { id: 'profile', label: 'Profile', icon: FaUser, href: '/student/settings' },
+      { id: 'notifications', label: 'Notifications', icon: FaBell, href: '/student/notification' },
+    ]
+  },
 ];
 
 export const StudentSidebar = () => {
@@ -36,18 +58,24 @@ export const StudentSidebar = () => {
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['settings']);
 
   const handleLogout = () => {
     logout();
     router.push('/login');
   };
 
-  const getActiveTab = () => {
-    const match = menuItems.find(item => pathname === item.href || pathname?.startsWith(item.href + '/'));
-    return match?.id || 'dashboard';
+  const toggleMenu = (menuId: string) => {
+    setExpandedMenus(prev => 
+      prev.includes(menuId) 
+        ? prev.filter(id => id !== menuId)
+        : [...prev, menuId]
+    );
   };
 
-  const activeTab = getActiveTab();
+  const isActive = (href: string) => {
+    return pathname === href || pathname?.startsWith(href + '/');
+  };
 
   const toggleMobile = () => setIsMobileOpen(!isMobileOpen);
   const closeMobile = () => setIsMobileOpen(false);
@@ -84,23 +112,76 @@ export const StudentSidebar = () => {
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
+            const isActiveItem = isActive(item.href);
+            const hasSubItems = item.subItems && item.subItems.length > 0;
+            const isExpanded = expandedMenus.includes(item.id);
+
+            if (hasSubItems) {
+              return (
+                <div key={item.id} className="space-y-1">
+                  <button
+                    onClick={() => toggleMenu(item.id)}
+                    className={`
+                      w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all
+                      ${isActiveItem 
+                        ? 'bg-white/20 text-white font-medium' 
+                        : 'text-white/70 hover:bg-white/10 hover:text-white'
+                      }
+                    `}
+                  >
+                    <Icon size={18} />
+                    <span className="flex-1 text-left">{item.label}</span>
+                    <FaChevronDown 
+                      className={`text-xs transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                    />
+                  </button>
+                  
+                  {isExpanded && (
+                    <div className="ml-6 space-y-1">
+                      {item.subItems!.map((subItem) => {
+                        const SubIcon = subItem.icon;
+                        const isSubActive = isActive(subItem.href);
+                        return (
+                          <Link
+                            key={subItem.id}
+                            href={subItem.href}
+                            onClick={closeMobile}
+                            className={`
+                              flex items-center gap-3 px-4 py-2 rounded-lg transition-all text-sm
+                              ${isSubActive 
+                                ? 'bg-white/20 text-white font-medium' 
+                                : 'text-white/60 hover:bg-white/10 hover:text-white'
+                              }
+                            `}
+                          >
+                            <SubIcon size={14} />
+                            <span>{subItem.label}</span>
+                            {isSubActive && <FaChevronRight className="ml-auto text-xs" />}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={item.id}
                 href={item.href}
                 onClick={closeMobile}
                 className={`
-                  w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all
-                  ${isActive 
+                  flex items-center gap-3 px-4 py-3 rounded-lg transition-all
+                  ${isActiveItem 
                     ? 'bg-white/20 text-white font-medium' 
                     : 'text-white/70 hover:bg-white/10 hover:text-white'
                   }
                 `}
               >
                 <Icon size={18} />
-                <span className="truncate">{item.label}</span>
-                {isActive && <FaChevronRight className="ml-auto text-sm flex-shrink-0" />}
+                <span>{item.label}</span>
+                {isActiveItem && <FaChevronRight className="ml-auto text-xs" />}
               </Link>
             );
           })}

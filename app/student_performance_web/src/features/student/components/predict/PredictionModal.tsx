@@ -21,8 +21,33 @@ export const PredictionModal = ({ isOpen, onClose, result, username }: Predictio
   };
 
   const handleDownload = () => {
-    // Download logic here - e.g., generate PDF
-    alert('Downloading report...');
+    const reportLines = [
+      `Prediction Report for ${username}`,
+      `Generated: ${new Date().toLocaleString()}`,
+      '',
+      `Predicted Grade: ${result.predicted_grade}`,
+      `Predicted GPA Range: ${result.predicted_gpa_range}`,
+      `Probability: ${result.top_probability}%`,
+      `Academic Status: ${result.academic_status}`,
+      '',
+      'Recommendations:',
+      ...(result.recommendations || []).map((rec, idx) => `${idx + 1}. ${rec}`),
+      '',
+      'Probability Breakdown:',
+      ...Object.entries(result.all_probabilities).map(
+        ([grade, prob]) => `${grade}: ${prob}%`
+      ),
+    ];
+
+    const blob = new Blob([reportLines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `prediction-report-${username.toLowerCase().replace(/\s+/g, '_')}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Get risk level color

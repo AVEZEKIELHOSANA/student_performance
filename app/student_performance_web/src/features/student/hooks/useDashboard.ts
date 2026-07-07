@@ -14,9 +14,9 @@ export const useDashboard = () => {
         const data = await dashboardService.getDashboardStats();
         setStats(data);
         setError(null);
-      } catch (err) {
-        setError('Failed to load dashboard data');
+      } catch (err: any) {
         console.error('Error fetching dashboard data:', err);
+        setError(err.response?.data?.detail || 'Failed to load dashboard data');
       } finally {
         setLoading(false);
       }

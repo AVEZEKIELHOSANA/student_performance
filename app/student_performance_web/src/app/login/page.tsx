@@ -8,12 +8,12 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { toast } from 'react-toastify';
 import { useGoogleLogin } from '@react-oauth/google';
-import ReCAPTCHA from 'react-google-recaptcha';
 import { FaEnvelope, FaLock, FaGoogle, FaFacebook } from 'react-icons/fa';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Divider } from '@/components/ui/Divider';
 import { useAuth } from '@/context/AuthContext';
+import { authService } from '@/features/auth/services/auth.service';
 import { apiClient } from '@/lib/axios';
 
 interface LoginFormData {
@@ -28,7 +28,6 @@ const schema = yup.object().shape({
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
-  const [captchaValue, setCaptchaValue] = useState<string | null>(null);
   const { login } = useAuth();
   const router = useRouter();
 
@@ -40,6 +39,17 @@ export default function LoginPage() {
     resolver: yupResolver(schema),
   });
 
+  // ✅ Role-based redirect function
+  const redirectToDashboard = (role: string) => {
+    const roleRoutes: Record<string, string> = {
+      student: '/student/dashboard',
+      instructor: '/instructor/dashboard',
+      admin: '/admin/dashboard',
+    };
+    const route = roleRoutes[role] || '/';
+    router.push(route);
+  };
+
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       try {
@@ -48,7 +58,9 @@ export default function LoginPage() {
         });
         login(response.data);
         toast.success('Login successful!');
-        router.push('/dashboard');
+        
+        const userRole = response.data.user.role;
+        redirectToDashboard(userRole);
       } catch (error: any) {
         toast.error(error.response?.data?.detail || 'Google login failed');
       }
@@ -63,20 +75,14 @@ export default function LoginPage() {
   };
 
   const onSubmit = async (data: LoginFormData) => {
-    if (!captchaValue) {
-      toast.error('Please complete the reCAPTCHA');
-      return;
-    }
-
     setLoading(true);
     try {
-      const response = await apiClient.post('/auth/login', {
-        ...data,
-        recaptcha_token: captchaValue,
-      });
+      const response = await authService.login(data);
       login(response.data);
       toast.success('Login successful!');
-      router.push('/dashboard');
+      
+      const userRole = response.data.user.role;
+      redirectToDashboard(userRole);
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Invalid credentials');
     } finally {
@@ -87,13 +93,11 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-[80vh] py-8">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
           <p className="text-gray-500 mt-1">Sign in to continue to your dashboard</p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)}>
           <Input
             label="Email Address"
@@ -119,13 +123,6 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          <div className="mt-4 flex justify-center">
-            <ReCAPTCHA
-              sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'}
-              onChange={(value) => setCaptchaValue(value)}
-            />
-          </div>
-
           <Button
             type="submit"
             variant="primary"
@@ -138,7 +135,6 @@ export default function LoginPage() {
 
         <Divider text="Or continue with" />
 
-        {/* Social Login */}
         <div className="flex gap-3">
           <Button
             variant="google"

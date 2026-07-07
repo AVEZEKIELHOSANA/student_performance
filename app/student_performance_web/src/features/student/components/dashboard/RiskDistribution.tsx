@@ -1,5 +1,8 @@
 import { Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { FaExclamationTriangle, FaCheckCircle, FaMinusCircle } from 'react-icons/fa';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 interface RiskDistributionProps {
   data: {

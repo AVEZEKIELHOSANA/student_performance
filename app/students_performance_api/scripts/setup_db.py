@@ -1,20 +1,15 @@
 # -*- coding: utf-8 -*-
-"""
-Run this script ONCE to create the database, tables, and admin account.
-"""
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from sqlalchemy import text
 
-# ── Step 1: Create the database ──────────────────────────────
-print("Step 1: Connecting to PostgreSQL...")
+DB_PASSWORD = "ezekiel673717424"  # CHANGE THIS
 
-# CHANGE THIS TO YOUR POSTGRES PASSWORD
-DB_PASSWORD = "ezekiel673717424"  # Replace with your PostgreSQL password
-
+print("Step 1: Creating database...")
 try:
     conn = psycopg2.connect(
         host="localhost",
@@ -30,43 +25,44 @@ try:
     
     if not exists:
         cursor.execute("CREATE DATABASE student_performance")
-        print("  ✅ Database 'student_performance' created.")
+        print("  ✅ Database created.")
     else:
-        print("  ℹ️ Database 'student_performance' already exists.")
+        print("  ℹ️ Database already exists.")
     
     cursor.close()
     conn.close()
-except psycopg2.OperationalError as e:
-    print(f"  ❌ ERROR: {e}")
-    print("  Make sure PostgreSQL is running and the password is correct.")
+except Exception as e:
+    print(f"  ❌ Error: {e}")
     sys.exit(1)
 
-# ── Step 2: Create all tables ─────────────────────────────────
-print("\nStep 2: Creating database tables...")
-
+print("\nStep 2: Creating tables...")
 try:
     from app.core.database import engine, Base
-    
-    # ✅ Import ALL models so they register with Base
     from app.modules.users.models import User
     from app.modules.predictions.models import Prediction
     
+    # Drop existing enum type if it exists
+    with engine.connect() as conn:
+        conn.execute(text("DROP TYPE IF EXISTS userrole CASCADE"))
+        conn.commit()
+        print("  ✅ Dropped existing enum type.")
+    
     Base.metadata.create_all(bind=engine)
-    print("  ✅ All tables created successfully.")
+    print("  ✅ Tables created.")
+    
 except Exception as e:
-    print(f"  ❌ ERROR creating tables: {e}")
+    print(f"  ❌ Error: {e}")
+    import traceback
+    traceback.print_exc()
     sys.exit(1)
 
-# ── Step 3: Create admin account ──────────────────────────────
 print("\nStep 3: Creating admin account...")
-
 try:
     from app.core.database import SessionLocal
-    from app.modules.users.models import User, UserRole
+    from app.modules.users.models import User  # ✅ No UserRole needed
     from app.core.security import hash_password
     
     db = SessionLocal()
-    
     existing = db.query(User).filter(User.email == "admin@ub.cm").first()
     
     if not existing:
@@ -74,26 +70,21 @@ try:
             username="admin",
             email="admin@ub.cm",
             password_hash=hash_password("admin123"),
-            role=UserRole.ADMIN,
+            role="admin",  # ✅ Just a string
             is_active=True,
             is_verified=True
         )
         db.add(admin)
         db.commit()
-        print("  ✅ Admin account created successfully!")
-        print("     Email: admin@ub.cm")
-        print("     Password: admin123")
-        print("  ⚠️ CHANGE THIS PASSWORD AFTER FIRST LOGIN!")
+        print("  ✅ Admin created: admin@ub.cm / admin123")
     else:
-        print("  ℹ️ Admin account already exists.")
+        print("  ℹ️ Admin already exists.")
     
     db.close()
 except Exception as e:
-    print(f"  ❌ ERROR creating admin account: {e}")
+    print(f"  ❌ Error: {e}")
     sys.exit(1)
 
 print("\n" + "="*50)
 print("✅ SETUP COMPLETE!")
 print("="*50)
-print("\nTo start the FastAPI backend:")
-print("  uvicorn app.main:app --reload --port 8000")

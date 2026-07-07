@@ -13,16 +13,36 @@ export interface Prediction {
   created_at: string;
 }
 
-export interface DashboardStats {
-  top_features: {
-    best: Feature;
-    second: Feature;
-    third: Feature;
-    worst: Feature;
-  };
-  predictions: Prediction[];
-  latest_prediction: Prediction | null;
+export interface TopFeatures {
+  best: Feature;
+  second: Feature;
+  third: Feature;
+  worst: Feature;
+}
+
+export interface ActivityData {
+  labels: string[];
+  study_hours: number[];
+  attendance: number[];
+}
+
+export interface RiskDistribution {
+  low: number;
+  medium: number;
+  high: number;
+}
+
+export interface QuickStats {
   total_predictions: number;
-  average_grade: string;
-  risk_level: 'Low' | 'Medium' | 'High';
+  average_accuracy: number;
+  study_hours_per_week: number;
+  risk_level: string;
+}
+
+export interface DashboardStats {
+  top_features: TopFeatures;
+  activity_data: ActivityData;
+  risk_distribution: RiskDistribution;
+  quick_stats: QuickStats;
+  latest_prediction: Prediction | null;
 }

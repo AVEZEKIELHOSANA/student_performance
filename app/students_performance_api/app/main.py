@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config.settings import settings
@@ -9,11 +9,25 @@ from app.modules.predictions.router import router as predictions_router
 from app.modules.instructors.router import router as instructors_router
 from app.modules.admin.router import router as admin_router
 from app.modules.cohorts.router import router as cohorts_router
-from fastapi.middleware.cors import CORSMiddleware
+from app.modules.students.router import router as students_router
+from app.modules.schools.router import router as schools_router
+from app.modules.recommendations.router import router as recommendations_router
+from app.modules.notifications.router import router as notifications_router
+from app.modules.simulator.router import router as simulator_router
+from app.ml.model_loader import ModelLoader
+import logging
+from fastapi.responses import JSONResponse
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Import models so they register with Base
 from app.modules.users.models import User
 from app.modules.predictions.models import Prediction
+from app.modules.students.models import StudentProfile
+from app.modules.schools.models import School, Faculty, Department, Level
+from app.modules.recommendations.models import Recommendation
+from app.modules.notifications.models import Notification
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -22,27 +36,30 @@ Base.metadata.create_all(bind=engine)
 async def lifespan(app: FastAPI):
     """Load ML artefacts on startup."""
     print("\n" + "="*50)
-    print("Loading ML artefacts...")
+    print("🚀 Starting Student Performance API...")
     print("="*50)
     
+    print("\n📦 Loading ML artefacts...")
     try:
-        from app.ml.model_loader import ModelLoader
-        ModelLoader.load_model(
-            model_path=settings.MODEL_PATH,
-            scaler_path=settings.SCALER_PATH,
-            encoder_path=settings.ENCODER_PATH,
-            features_path=settings.FEATURES_PATH
+        loaded = ModelLoader.load_model(
+            settings.MODEL_PATH,
+            settings.SCALER_PATH,
+            settings.ENCODER_PATH,
+            settings.FEATURES_PATH,
         )
-        print("\n✅ ML artefacts loaded successfully!")
+        if loaded:
+            print("✅ ML artefacts loaded successfully!")
+        else:
+            print("⚠️ Warning: ML artefacts were not loaded. Check model paths.")
     except Exception as e:
-        print(f"\n⚠️ Warning: Could not load ML artefacts: {e}")
-        print("   The API will still run, but prediction endpoints will not work.")
+        print(f"⚠️ Warning: Could not load ML artefacts: {e}")
     
+    print("\n" + "="*50)
+    print("✅ API is ready!")
+    print(f"   Docs: http://localhost:8000/docs")
     print("="*50 + "\n")
-    yield
     
-    # Cleanup on shutdown
-    from app.ml.model_loader import ModelLoader
+    yield
     ModelLoader.clear()
 
 app = FastAPI(
@@ -54,40 +71,30 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# ✅ FIXED CORS - Use manual middleware
-@app.middleware("http")
-async def add_cors_headers(request, call_next):
-    response = await call_next(request)
-    
-    # Allow all origins in development
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, X-Requested-With, X-CSRF-Token"
-    response.headers["Access-Control-Expose-Headers"] = "Content-Type, Authorization"
-    
-    # Handle preflight OPTIONS requests
-    if request.method == "OPTIONS":
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, X-Requested-With"
-        response.headers["Access-Control-Max-Age"] = "86400"
-    
-    return response
 
-# Also keep the standard CORS middleware as fallback
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception(f"Unhandled error on {request.method} {request.url.path}")
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+# ✅ CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins in development
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Routers
+# ✅ Routers with correct prefixes
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["Users"])
+app.include_router(students_router, prefix="/api/v1/students", tags=["Students"])
 app.include_router(predictions_router, prefix="/api/v1/predictions", tags=["Predictions"])
+app.include_router(schools_router, prefix="/api/v1/schools", tags=["Schools"])
+app.include_router(recommendations_router, prefix="/api/v1/recommendations", tags=["Recommendations"])
+app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["Notifications"])
+app.include_router(simulator_router, prefix="/api/v1/simulator", tags=["Simulator"])
 app.include_router(instructors_router, prefix="/api/v1/instructors", tags=["Instructors"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(cohorts_router, prefix="/api/v1/cohorts", tags=["Cohorts"])

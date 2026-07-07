@@ -15,12 +15,13 @@ import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Divider } from '@/components/ui/Divider';
 import { apiClient } from '@/lib/axios';
+import { authService } from '@/features/auth/services/auth.service';
 
 interface RegisterFormData {
   name: string;
   email: string;
   password: string;
-  role: 'student' | 'instructor';
+  role: 'student' | 'instructor' | 'admin';
   acceptTerms: boolean;
 }
 
@@ -28,7 +29,7 @@ const schema = yup.object().shape({
   name: yup.string().required('Name is required'),
   email: yup.string().email('Invalid email').required('Email is required'),
   password: yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
-  role: yup.string().oneOf(['student', 'instructor']).required('Role is required'),
+  role: yup.string().oneOf(['student', 'instructor', 'admin']).required('Role is required'),
   acceptTerms: yup.boolean().oneOf([true], 'You must accept the terms'),
 });
 
@@ -45,7 +46,7 @@ export default function RegisterPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<RegisterFormData>({
-    resolver: yupResolver(schema),
+    resolver: yupResolver(schema) as any,
     defaultValues: {
       role: 'student',
     },
@@ -79,11 +80,12 @@ export default function RegisterPage() {
     try {
       const username = data.name.toLowerCase().replace(/\s+/g, '');
       
-      const response = await apiClient.post('/auth/register', {
-        username: username,
+      await authService.register({
+        username,
         email: data.email,
         password: data.password,
-        role: data.role.toUpperCase(),
+        role: data.role,
+        recaptcha_token: captchaValue ?? undefined,
       });
 
       toast.success('Account created successfully! Please login.');
@@ -146,6 +148,7 @@ export default function RegisterPage() {
             >
               <option value="student">Student</option>
               <option value="instructor">Instructor</option>
+              <option value="admin">Admin</option>
             </select>
             {errors.role && (
               <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>

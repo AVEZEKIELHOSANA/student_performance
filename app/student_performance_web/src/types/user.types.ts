@@ -20,6 +20,7 @@ export interface RegisterRequest {
   email: string;
   password: string;
   role: UserRole;
+  recaptcha_token?: string;
 }
 
 export interface AuthResponse {
@@ -27,4 +28,8 @@ export interface AuthResponse {
   refresh_token: string;
   token_type: string;
   user: User;
+}
+
+export interface RefreshTokenRequest {
+  refresh_token: string;
 }

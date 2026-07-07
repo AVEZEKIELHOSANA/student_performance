@@ -241,9 +241,9 @@ export const PredictionForm = ({
             label="Home Study Environment" 
             field="home_study_environment" 
             min={1} 
-            max={10} 
-            scale="1-10"
-            description="Rate your home study convenience from 1 (very poor) to 10 (excellent)" 
+            max={5} 
+            scale="1-5"
+            description="Rate your home study convenience from 1 (very poor) to 5 (excellent)" 
           />
           <InputField 
             label="Internet Quality" 
