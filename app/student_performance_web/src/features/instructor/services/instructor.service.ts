@@ -176,4 +176,19 @@ export const instructorService = {
       return new Blob();
     }
   },
+  // Add to existing instructorService object
+
+// Flag a student
+flagStudent: async (studentId: string, flag: string): Promise<any> => {
+  const response = await apiClient.patch(`/instructor/students/${studentId}/flag`, { flag });
+  return response.data;
+},
+
+// Remove flag
+unflagStudent: async (studentId: string): Promise<any> => {
+  const response = await apiClient.delete(`/instructor/students/${studentId}/flag`);
+  return response.data;
+},
+
+// Start intervention
 };

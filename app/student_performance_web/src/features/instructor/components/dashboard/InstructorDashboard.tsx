@@ -1,162 +1,210 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { instructorService } from '../../services/instructor.service';
-import { InstructorStats, AtRiskStudent } from '../../types/instructor.types';
-import { FaUsers, FaExclamationTriangle, FaChartLine, FaUniversity, FaBook, FaEye, FaFlag } from 'react-icons/fa';
+import { useState, useMemo } from 'react';
+import {
+  FaUserGraduate,
+  FaExclamationTriangle,
+  FaChartLine,
+  FaBell,
+  FaFilter,
+  FaDownload,
+  FaSearch,
+  FaUserCheck,
+  FaUserTimes,
+  FaCalendarAlt,
+  FaBookOpen,
+  FaClock,
+  FaSchool,
+} from 'react-icons/fa';
+import { StaticData } from './StaticData';
+import { StatsCard } from './StatsCard';
+import { StudentTable } from './StudentTable';
+import { GradeDistribution } from './GradeDistribution';
+import { SubjectPerformance } from './SubjectPerformance';
+import { RiskOverview } from './RiskOverview';
+import { AttendanceChart } from './AttendanceChart';
+import { RecentActivity } from './RecentActivity';
 
 export const InstructorDashboard = () => {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<InstructorStats | null>(null);
-  const [atRiskStudents, setAtRiskStudents] = useState<AtRiskStudent[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState('all');
+  const [selectedRisk, setSelectedRisk] = useState('all');
+  const [selectedSubject, setSelectedSubject] = useState('all');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [statsData, atRiskData] = await Promise.all([
-          instructorService.getStats(),
-          instructorService.getAtRiskStudents(),
-        ]);
-        setStats(statsData);
-        setAtRiskStudents(atRiskData.slice(0, 5));
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Get static data
+  const { students, stats, subjects, activities, gradeDistribution } = StaticData;
 
-    fetchData();
-  }, []);
+  // Filter students
+  const filteredStudents = useMemo(() => {
+    return students.filter((student) => {
+      const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           student.studentId.includes(searchTerm);
+      const matchesGrade = selectedGrade === 'all' || student.grade === selectedGrade;
+      const matchesRisk = selectedRisk === 'all' || student.riskLevel === selectedRisk;
+      return matchesSearch && matchesGrade && matchesRisk;
+    });
+  }, [students, searchTerm, selectedGrade, selectedRisk]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1a2a6c]"></div>
-      </div>
-    );
-  }
+  // Get unique grades for filter
+  const grades = ['all', ...new Set(students.map(s => s.grade))];
 
-  const statsCards = [
-    {
-      title: 'Total Students',
-      value: stats?.total_students || 0,
-      icon: FaUsers,
-      color: 'text-blue-600',
-      bg: 'bg-blue-50',
-    },
-    {
-      title: 'At-Risk Students',
-      value: stats?.at_risk_students || 0,
-      icon: FaExclamationTriangle,
-      color: 'text-red-600',
-      bg: 'bg-red-50',
-    },
-    {
-      title: 'Predicted Pass Rate',
-      value: `${stats?.predicted_pass_rate || 0}%`,
-      icon: FaChartLine,
-      color: 'text-green-600',
-      bg: 'bg-green-50',
-    },
-    {
-      title: 'Cohorts Created',
-      value: stats?.cohorts_created || 0,
-      icon: FaUniversity,
-      color: 'text-purple-600',
-      bg: 'bg-purple-50',
-    },
-  ];
+  // Risk level options
+  const riskOptions = ['all', 'critical', 'high', 'medium', 'low'];
+
+  // Subject options
+  const subjectOptions = ['all', ...subjects.map(s => s.name)];
+
+  // Count at-risk students
+  const atRiskStudents = students.filter(s => s.riskLevel === 'critical' || s.riskLevel === 'high');
 
   return (
-    <div className="space-y-6">
-      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#2d4373] rounded-xl p-6 text-white">
-        <div className="flex items-start justify-between gap-6 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold">Welcome back, {user?.username}</h1>
-            <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-white/80">
-              <span className="flex items-center gap-1">
-                <FaUniversity className="text-xs" /> {stats?.faculty || 'N/A'}
-              </span>
-              <span className="flex items-center gap-1">
-                <FaBook className="text-xs" /> {stats?.department || 'N/A'}
-              </span>
-              <span className="flex items-center gap-1">
-                <FaBook className="text-xs" /> {stats?.role || 'Instructor'}
-              </span>
+    <div className="space-y-6 p-4 md:p-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-[#1a2a6c]">
+            Instructor Dashboard
+          </h1>
+          <p className="text-[#4a5568] text-sm">
+            Welcome back! Here's an overview of your students' performance.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button className="flex items-center gap-2 px-4 py-2 bg-[#1a2a6c] text-white rounded-lg hover:bg-[#2d4373] transition-all text-sm">
+            <FaDownload /> Export Report
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 border border-[#e2e8f0] rounded-lg hover:bg-gray-50 transition-all text-sm">
+            <FaBell /> Notifications
+            <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-1">
+              {stats.unreadNotifications}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatsCard
+          label="Total Students"
+          value={stats.totalStudents}
+          icon={FaUserGraduate}
+          color="text-blue-600 bg-blue-50"
+          change="+2 this month"
+        />
+        <StatsCard
+          label="At Risk Students"
+          value={stats.atRiskStudents}
+          icon={FaExclamationTriangle}
+          color="text-red-600 bg-red-50"
+          change={`${stats.riskPercentage}% of total`}
+        />
+        <StatsCard
+          label="Avg GPA"
+          value={stats.avgGPA}
+          icon={FaChartLine}
+          color="text-green-600 bg-green-50"
+          change="+0.2 from last month"
+        />
+        <StatsCard
+          label="Attendance Rate"
+          value={stats.avgAttendance}
+          icon={FaClock}
+          color="text-purple-600 bg-purple-50"
+          change="92.5% average"
+        />
+      </div>
+
+      {/* Risk Overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <RiskOverview students={students} />
+        </div>
+        <div>
+          <RecentActivity activities={activities} />
+        </div>
+      </div>
+
+      {/* Filters and Search */}
+      <div className="bg-white rounded-xl shadow-sm border border-[#e2e8f0] p-4">
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex-1 min-w-[200px]">
+            <div className="relative">
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search students..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1a2a6c] focus:border-transparent"
+              />
             </div>
           </div>
-          <div className="text-right text-sm text-white/80">
-            <p>{new Date().toLocaleDateString()}</p>
+          <div className="flex flex-wrap gap-3">
+            <select
+              value={selectedGrade}
+              onChange={(e) => setSelectedGrade(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1a2a6c]"
+            >
+              {grades.map((grade) => (
+                <option key={grade} value={grade}>
+                  {grade === 'all' ? 'All Grades' : `Grade ${grade}`}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedRisk}
+              onChange={(e) => setSelectedRisk(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1a2a6c]"
+            >
+              {riskOptions.map((risk) => (
+                <option key={risk} value={risk}>
+                  {risk === 'all' ? 'All Risk Levels' : 
+                   risk.charAt(0).toUpperCase() + risk.slice(1) + ' Risk'}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1a2a6c]"
+            >
+              {subjectOptions.map((subject) => (
+                <option key={subject} value={subject}>
+                  {subject === 'all' ? 'All Subjects' : subject}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsCards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <div key={card.title} className="bg-white rounded-xl shadow-sm p-6 border border-[#e2e8f0]">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm text-[#4a5568]">{card.title}</p>
-                  <p className="text-2xl font-bold text-[#1a2a6c] mt-1">{card.value}</p>
-                </div>
-                <div className={`p-3 rounded-lg ${card.bg}`}>
-                  <Icon className={`${card.color} text-xl`} />
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
+      {/* Student Table */}
       <div className="bg-white rounded-xl shadow-sm border border-[#e2e8f0] overflow-hidden">
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-            <FaExclamationTriangle className="text-red-600" /> Recent At-Risk Students
+        <div className="p-4 border-b border-[#e2e8f0] flex justify-between items-center">
+          <h2 className="text-lg font-semibold text-[#1a2a6c]">
+            Student List
+            <span className="text-sm font-normal text-gray-500 ml-2">
+              ({filteredStudents.length} students)
+            </span>
           </h2>
-          <a href="/instructor/at-risk" className="text-sm text-[#1a2a6c] hover:underline flex items-center gap-1">
-            View all <FaEye className="text-xs" />
-          </a>
+          <div className="flex gap-2">
+            <button className="text-sm text-[#1a2a6c] hover:underline flex items-center gap-1">
+              <FaDownload size={12} /> Export
+            </button>
+          </div>
         </div>
-        {atRiskStudents.length === 0 ? (
-          <div className="px-6 py-8 text-center text-gray-500">
-            <FaExclamationTriangle className="mx-auto text-3xl text-gray-300 mb-2" />
-            <p>No at-risk students found</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
-            {atRiskStudents.map((student) => (
-              <div key={student.id} className="px-6 py-4 hover:bg-gray-50 transition-all">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-gray-900">{student.student_name}</p>
-                      <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">
-                        {student.grade_label}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500">{student.student_email}</p>
-                    <p className="text-xs text-gray-400">{student.cohort_name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-[#1a2a6c]">{student.gpa_range}</p>
-                    <p className="text-xs text-gray-500">{student.probability}% probability</p>
-                    {student.is_flagged && (
-                      <span className="text-xs text-red-600 flex items-center gap-1 justify-end">
-                        <FaFlag className="text-xs" /> Flagged
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <StudentTable students={filteredStudents} />
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <GradeDistribution data={gradeDistribution} />
+        <SubjectPerformance subjects={subjects} students={students} />
+      </div>
+
+      {/* Attendance Chart */}
+      <div className="grid grid-cols-1 gap-6">
+        <AttendanceChart students={students} />
       </div>
     </div>
   );
