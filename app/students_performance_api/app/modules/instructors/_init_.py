@@ -1,0 +1,1 @@
+from app.modules.instructors.router import router
